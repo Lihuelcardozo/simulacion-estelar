@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Simulación Estelar</title>
 
 <style>
@@ -12,11 +13,12 @@
     color: #00ffcc;
     font-family: 'Courier New', monospace;
     user-select: none;
+    touch-action: none;
   }
 
   canvas { display: block; }
 
-  /* PANTALLA DE INICIO: Rectángulo compacto original */
+  /* PANTALLA DE INICIO */
   #mainMenu {
     position: fixed;
     top: 50%;
@@ -29,6 +31,8 @@
     box-shadow: 0 0 30px rgba(0, 255, 204, 0.3);
     border-radius: 8px;
     z-index: 30;
+    width: 90%;
+    max-width: 400px;
   }
 
   #mainMenu h1 {
@@ -57,6 +61,25 @@
     box-shadow: 0 0 10px #00ffcc;
   }
 
+  #mainMenu input:disabled {
+    color: #00ff33;
+    border-color: #00aa44;
+    background: rgba(0, 20, 10, 0.5);
+    text-shadow: 0 0 5px #00ff33;
+  }
+
+  #leaderboard {
+    margin-top: 15px;
+    background: rgba(0, 255, 204, 0.05);
+    border: 1px dashed #00ffcc;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    text-align: left;
+  }
+  #leaderboard h3 { margin: 0 0 5px 0; text-align: center; color: #00ff33; font-size: 14px;}
+  .score-row { display: flex; justify-content: space-between; margin: 2px 0; color: #fff; }
+
   /* HUD del juego */
   #hud {
     position: fixed;
@@ -70,6 +93,26 @@
     border-radius: 0 8px 8px 0;
     box-shadow: 0 4px 20px rgba(0, 255, 204, 0.1);
     display: none; 
+    font-size: 14px;
+    max-width: calc(100% - 30px);
+  }
+
+  /* CARTEL DE ANIVERSARIO */
+  #anniversaryModal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+    text-align: center;
+    background: rgba(5, 5, 15, 0.98);
+    padding: 30px 40px;
+    border: 2px solid #00ffcc;
+    box-shadow: 0 0 30px rgba(0, 255, 204, 0.4);
+    border-radius: 8px;
+    z-index: 40;
+    width: 90%;
+    max-width: 400px;
   }
 
   /* Pantalla de Game Over */
@@ -86,6 +129,8 @@
     box-shadow: 0 0 30px rgba(255, 0, 85, 0.4);
     border-radius: 8px;
     z-index: 20;
+    width: 90%;
+    max-width: 400px;
   }
 
   button {
@@ -115,38 +160,102 @@
 <canvas id="game"></canvas>
 
 <div id="mainMenu">
-  <h1>🌌 SIMULACIÓN ESTELAR:<br><span style="color: #00ff33;"> prueba</span></h1>
+  <h1> SIMULACIÓN ESTELAR:<br><span style="color: #00ff33;">SECTOR PRUEBA</span></h1>
   <p style="color: #fff; font-size: 14px;">Identifique al oficial al mando:</p>
   <input type="text" id="pilotName" placeholder="Ej: LIHUEL" maxlength="15">
   <br>
   <button onclick="pressStart()">INICIAR</button>
+
+  <div id="leaderboard">
+    <h3>🏆 REGISTRO DE OFICIALES</h3>
+    <div id="leaderboard-list"></div>
+  </div>
 </div>
 
 <div id="hud">
-  🛸 CAPITÁN: <span id="hudName" style="color:#fff;">PILOTE</span> <br>
+  🛸 CAPITANX: <span id="hudName" style="color:#fff;">PILOTX</span> <br>
   🎚️ DIFICULTAD: <span id="lvl">1</span><br>
   ✨ PUNTOS: <span id="score">0</span> pts<br>
+  ❤ VIDAS: <span id="lives" style="color:#ff0055; font-weight:bold;">❤️❤️❤️</span><br>
   🛡️ ESCUDO: <span id="shieldStatus" style="color: #ff3300; font-weight: bold;">CAÍDO</span>
+</div>
+
+<div id="anniversaryModal">
+  <h2 style="color: #00ff33; font-size: 24px; margin-top: 0; text-shadow: 0 0 10px #00ff33;">✨ PREMIO DE SIMULACIÓN ✨</h2>
+  <p style="color: #fff; font-size: 18px; font-weight: bold; line-height: 1.6; margin: 20px 0;">
+    💖 FELIZ 8 MESES MI AMOR, TE QUIERO MUCHO 💖
+  </p>
+  <p style="color: #00ffcc; font-size: 13px; margin-bottom: 20px;">SISTEMAS SOBRECARGADOS: ¡SE OTORGA HIPER-ESCUDO DE AMOR PROLONGADO!</p>
+  <button onclick="closeAnniversaryModal()">ACTIVAR PODER</button>
 </div>
 
 <div id="gameOver">
   <h2 style="color: #ff0055; font-size: 28px; margin-top: 0;">💥 MISIÓN FALLIDA</h2>
-  <p style="color: #fff; font-size: 16px;">Nave destruida. Reiniciando simulación...</p>
-  <button onclick="startGame()">VOLVER A INTENTAR</button>
+  <p style="color: #fff; font-size: 16px;">Nave destruida por completo.</p>
+  <p style="color: #00ffcc; font-size: 16px;">Máximo Cuadrante: <span id="finalLvl" style="font-weight:bold;">1</span></p>
+  <button onclick="backToMenu()">VOLVER AL MENÚ</button>
 </div>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
 
 let ship, obstacles, walls, items, stars, score, speed, gameRunning, spawnRate, wallSpawnRate, itemSpawnRate;
 let targetY = canvas.height / 2; 
 let captainName = "LIHUEL";
+let particles = [];
+  
+let lives = 3;
+let currentSector = 1;
+let anniversaryTriggered = false;
 
-// Inicialización de la lluvia de estrellas total
+// DETECTAR JUGADOR POR URL Y SEPARAR LA BASE DE DATOS LOCAL
+const urlParams = new URLSearchParams(window.location.search);
+const urlPlayer = urlParams.get('player'); // Filtra si dice "?player=Mel"
+const storageKey = urlPlayer ? `borg_records_${urlPlayer.toLowerCase()}` : "borg_records_general";
+
+// Configuración inicial del input según el enlace
+const nameInput = document.getElementById("pilotName");
+if (urlPlayer) {
+  nameInput.value = urlPlayer.toUpperCase();
+  nameInput.disabled = true; // Bloquea el campo para que esté fijo su nombre
+}
+
+function updateLeaderboardUI() {
+  const listContainer = document.getElementById("leaderboard-list");
+  let records = JSON.parse(localStorage.getItem(storageKey)) || [];
+  listContainer.innerHTML = "";
+  
+  if(records.length === 0) {
+    listContainer.innerHTML = "<div style='color:#aaa; text-align:center;'>Sin registros aún</div>";
+    return;
+  }
+  
+  records.slice(0, 4).forEach((r, index) => {
+    listContainer.innerHTML += `
+      <div class="score-row">
+        <span>${index + 1}. ${r.name}</span>
+        <span>SECTOR ${r.maxSector}</span>
+      </div>`;
+  });
+}
+updateLeaderboardUI();
+
+function saveRecord(name, maxSector) {
+  let records = JSON.parse(localStorage.getItem(storageKey)) || [];
+  records.push({ name: name, maxSector: maxSector });
+  records.sort((a, b) => b.maxSector - a.maxSector);
+  localStorage.setItem(storageKey, JSON.stringify(records));
+  updateLeaderboardUI();
+}
+
 function initStars() {
   stars = Array.from({length: 180}, () => ({
     x: Math.random() * canvas.width,
@@ -159,12 +268,10 @@ initStars();
 
 gameRunning = false;
 
-// Bucle de menú inicial
 function menuLoop() {
   if (gameRunning) return; 
   ctx.fillStyle = "#030611"; 
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
   drawStarsMenu();
   requestAnimationFrame(menuLoop);
 }
@@ -183,8 +290,7 @@ function drawStarsMenu() {
 }
 
 function pressStart() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  resizeCanvas();
   initStars(); 
 
   const input = document.getElementById("pilotName").value.trim();
@@ -196,6 +302,11 @@ function pressStart() {
 
   document.getElementById("mainMenu").style.display = "none";
   document.getElementById("hud").style.display = "block";
+  
+  lives = 3;
+  currentSector = 1;
+  score = 0;
+  anniversaryTriggered = false;
   
   startGame();
 }
@@ -209,20 +320,18 @@ function startGame() {
     angle: 0,
     hasShield: false,       
     shieldTimeLeft: 0,      
-    isInvulnerable: false,  
-    invulnTimeLeft: 0
+    isInvulnerable: true,  
+    invulnTimeLeft: 120
   };
   
   targetY = canvas.height / 2;
   obstacles = [];
   walls = []; 
   items = []; 
-  score = 0;
   
-  // Dificultad progresiva calibrada suave
-  speed = 4.5;         
-  spawnRate = 0.02;    
-  wallSpawnRate = 0.0025; 
+  speed = 4.5 + (currentSector - 1) * 0.35;         
+  spawnRate = Math.min(0.02 + (currentSector - 1) * 0.003, 0.06);    
+  wallSpawnRate = Math.min(0.0025 + (currentSector - 1) * 0.0002, 0.005); 
   itemSpawnRate = 0.003; 
   
   gameRunning = true;
@@ -237,10 +346,9 @@ document.addEventListener("mousemove", e => {
 });
 document.addEventListener("touchmove", e => {
   if(gameRunning) {
-    e.preventDefault();
     targetY = e.touches[0].clientY;
   }
-}, {passive: false});
+}, {passive: true});
 
 function drawStars() {
   ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
@@ -319,12 +427,17 @@ function drawShip() {
   ctx.closePath();
   ctx.fill();
 
-  // Escudo Deflector
+  
+  
+  
+  // ESCUDO DEFLECTOR: Cambia a rosa neón en el Sector 8
   if (ship.hasShield) {
     ctx.shadowBlur = 20;
-    let colorEscudo = "#00bbff";
     
-    if (ship.shieldTimeLeft < 150 && Math.floor(Date.now() / 100) % 2 === 0) {
+    let colorEscudo = "#00bbff";
+    if (currentSector === 8) {
+      colorEscudo = "#ff00aa"; 
+    } else if (ship.shieldTimeLeft < 150 && Math.floor(Date.now() / 100) % 2 === 0) {
       colorEscudo = "#ff3300";
     }
 
@@ -332,7 +445,7 @@ function drawShip() {
     ctx.strokeStyle = colorEscudo;
     ctx.lineWidth = 2;
 
-    ctx.fillStyle = "rgba(0, 150, 255, 0.08)";
+    ctx.fillStyle = (currentSector === 8) ? "rgba(255, 0, 170, 0.08)" : "rgba(0, 150, 255, 0.08)";
     ctx.beginPath();
     ctx.ellipse(0, 0, 32, 24, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -361,11 +474,8 @@ function spawnObstacle(forceCleanY = null, cleanHeight = 0) {
 
   if (forceCleanY !== null) {
     if (spawnY > forceCleanY - 30 && spawnY < forceCleanY + cleanHeight + 30) {
-      if (Math.random() > 0.5) {
-        spawnY = forceCleanY - 60; 
-      } else {
-        spawnY = forceCleanY + cleanHeight + 60; 
-      }
+      if (Math.random() > 0.5) spawnY = forceCleanY - 60; 
+      else spawnY = forceCleanY + cleanHeight + 60; 
     }
   }
 
@@ -382,7 +492,7 @@ function spawnObstacle(forceCleanY = null, cleanHeight = 0) {
 
   if (type > 0.85) { 
     newObs.size = 18;
-    newObs.vx = speed * 1.5;
+    newObs.vx = speed * 1.4;
     newObs.color = "#ccff00"; 
     newObs.style = "sonda";
   } else if (type < 0.15) { 
@@ -426,7 +536,6 @@ function spawnShieldItem() {
   });
 }
 
-// CORREGIDO: Error de sintaxis corregido para evitar congelamientos
 function checkShipVsBox(ship, box) {
   let half = box.size / 2;
   let closestX = Math.max(box.x - half, Math.min(ship.x, box.x + half));
@@ -446,18 +555,57 @@ function checkRectCircleCollision(circleX, circleY, radius, rectX, rectY, rectW,
   let dy = circleY - closestY;
   return (dx * dx + dy * dy) < (radius * radius);
 }
+function createExplosion(x, y, color = "#ff5500") {
 
+  for (let i = 0; i < 30; i++) {
+
+    particles.push({
+      x: x,
+      y: y,
+
+      vx: (Math.random() - 0.5) * 8,
+      vy: (Math.random() - 0.5) * 8,
+
+      size: Math.random() * 4 + 1,
+
+      life: 40,
+
+      color: color
+    });
+
+  }
+
+}
+  
+  
 function handleShipImpact() {
   if (ship.isInvulnerable) return;
 
+  if (currentSector === 8) {
+  createExplosion(ship.x, ship.y, "#ff00aa");
+} else {
+  createExplosion(ship.x, ship.y);
+}
   if (ship.hasShield) {
     ship.hasShield = false;
     ship.isInvulnerable = true;
     ship.invulnTimeLeft = 100; 
     actualizarHUD();
   } else {
-    gameRunning = false;
-    document.getElementById("gameOver").style.display = "block";
+    lives--;
+    actualizarHUD();
+    
+    if (lives > 0) {
+      gameRunning = false;
+      setTimeout(() => {
+        startGame(); 
+      }, 500);
+    } else {
+      gameRunning = false;
+      document.getElementById("finalLvl").innerText = currentSector;
+      document.getElementById("gameOver").style.display = "block";
+      saveRecord(captainName, currentSector);
+    }
   }
 }
 
@@ -466,22 +614,90 @@ function incrementarDificultad() {
     speed += 0.35;
     spawnRate = Math.min(spawnRate + 0.003, 0.06);
     wallSpawnRate = Math.min(wallSpawnRate + 0.0002, 0.005);
+    
+    currentSector = Math.floor(score / 10) + 1;
+    
+    if (currentSector === 8 && !anniversaryTriggered) {
+      gameRunning = false; 
+      anniversaryTriggered = true;
+      document.getElementById("anniversaryModal").style.display = "block";
+    }
+    
+    actualizarHUD();
   }
 }
 
+function closeAnniversaryModal() {
+  document.getElementById("anniversaryModal").style.display = "none";
+  gameRunning = true;
+  
+  ship.hasShield = true;
+  ship.shieldTimeLeft = 1200; 
+  ship.isInvulnerable = true;
+  ship.invulnTimeLeft = 100;
+  
+  actualizarHUD();
+  loop();
+}
+function updateParticles() {
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+
+    let p = particles[i];
+
+    p.x += p.vx;
+    p.y += p.vy;
+
+    p.life--;
+
+    ctx.save();
+
+    ctx.globalAlpha = p.life / 40;
+
+    ctx.fillStyle = p.color;
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    }
+
+  }
+
+}
+  
+  
 function actualizarHUD() {
   document.getElementById("hudName").innerText = captainName;
   document.getElementById("score").innerText = score;
-  document.getElementById("lvl").innerText = Math.floor(score / 25) + 1;
+  document.getElementById("lvl").innerText = currentSector;
+  
+  let hearts = "";
+  for(let i=0; i<3; i++) {
+    hearts += i < lives ? "❤️" : "🖤";
+  }
+  document.getElementById("lives").innerText = hearts;
   
   const status = document.getElementById("shieldStatus");
   if (ship.hasShield) {
-    status.innerText = "AL 100%";
-    status.style.color = "#00aaff";
+    status.innerText = (currentSector === 8) ? "SUPER ESCUDO ROSA 💖" : "AL 100%";
+    status.style.color = (currentSector === 8) ? "#ff00aa" : "#00aaff";
   } else {
     status.innerText = "CAÍDO";
     status.style.color = "#ff3300";
   }
+}
+
+function backToMenu() {
+  document.getElementById("gameOver").style.display = "none";
+  document.getElementById("hud").style.display = "none";
+  document.getElementById("mainMenu").style.display = "block";
+  gameRunning = false;
+  menuLoop();
 }
 
 function loop() {
@@ -490,9 +706,14 @@ function loop() {
   ctx.fillStyle = "rgba(2, 4, 15, 0.3)"; 
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  drawStars(); 
-  updateShip();
-  drawShip();
+  drawStars();
+
+updateParticles();
+
+updateShip();
+drawShip();
+  
+  
 
   let activeWall = walls.length > 0 ? walls[0] : null;
 
@@ -514,7 +735,6 @@ function loop() {
     spawnShieldItem();
   }
 
-  // 1. ITEMS DEFLECTORES
   items.forEach((item, i) => {
     item.x -= item.vx;
     ctx.save();
@@ -545,7 +765,6 @@ function loop() {
     if (item.x < -50) items.splice(i, 1);
   });
 
-  // 2. OBSTÁCULOS BORG
   obstacles.forEach((o, i) => {
     o.x -= o.vx;
     o.y += Math.sin(Date.now() / 150) * o.vy; 
@@ -604,7 +823,6 @@ function loop() {
     }
   });
 
-  // 3. PAREDES LÁSER COMPLETAS SÓLIDAS
   walls.forEach((w, i) => {
     w.x -= w.vx;
     let laserGrad = ctx.createLinearGradient(w.x, 0, w.x + w.width, 0);
@@ -640,12 +858,6 @@ function loop() {
 
   requestAnimationFrame(loop);
 }
-
-window.addEventListener("resize", () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  initStars();
-});
 </script>
 
 </body>
